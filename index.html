@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lithography Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        .game-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            height: 100vh;
+            height: 100svh;
+            gap: 0;
+        }
+        
+        .panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 8px;
+        }
+        
+        .panel h2 {
+            font-size: 11px;
+            line-height: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            color: #aaa;
+        }
+        
+        .grid-container {
+            display: inline-block;
+        }
+        
+        .grid {
+            display: grid;
+            gap: 1px;
+            background: #000;
+            border: 2px solid #444;
+        }
+        
+        .grid-N {
+            grid-template-columns: repeat(7, 1fr);
+        }
+        
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .cell {
+            aspect-ratio: 1;
+            cursor: pointer;
+            border: none;
+            padding: 0;
+            position: relative;
+            min-width: 0;
+        }
+        
+        .panel:nth-child(1) .grid-N,
+        .panel:nth-child(3) .grid-N,
+        .panel:nth-child(4) .grid-N {
+            width: min(90vw, calc(50vh - 35px), 400px);
+        }
+        
+        .panel:nth-child(2) .grid-3 {
+            width: min(40vw, 20vh, 180px);
+        }
+        
+        .cell:active {
+            opacity: 0.7;
+        }
+        
+        .cell-black {
+            background: #000;
+        }
+        
+        .cell-yellow {
+            background: #FFD700;
+        }
+        
+        .cell-diag-fwd {
+            background: repeating-linear-gradient(
+                45deg,
+                #fff,
+                #fff 2px,
+                #000 2px,
+                #000 4px
+            );
+        }
+        
+        .cell-diag-back {
+            background: repeating-linear-gradient(
+                -45deg,
+                #fff,
+                #fff 2px,
+                #000 2px,
+                #000 4px
+            );
+        }
+        
+        .cell-vertical {
+            background: repeating-linear-gradient(
+                90deg,
+                #fff,
+                #fff 2px,
+                #000 2px,
+                #000 4px
+            );
+        }
+        
+        .cell-horizontal {
+            background: repeating-linear-gradient(
+                0deg,
+                #fff,
+                #fff 2px,
+                #000 2px,
+                #000 4px
+            );
+        }
+        
+        .controls-section {
+            padding: 20px;
+            background: #1a1a1a;
+            border-top: 2px solid #333;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background 0.3s;
+            font-weight: 600;
+        }
+        
+        button:active {
+            background: #45a049;
+        }
+        
+        button.secondary {
+            background: #2196F3;
+        }
+        
+        button.secondary:active {
+            background: #0b7dda;
+        }
+        
+        .win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a1a;
+            padding: 40px;
+            border-radius: 12px;
+            border: 3px solid #4CAF50;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            text-align: center;
+            display: none;
+            z-index: 1000;
+            max-width: 90vw;
+        }
+        
+        .win-message.show {
+            display: block;
+        }
+        
+        .win-message h1 {
+            color: #4CAF50;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            z-index: 999;
+        }
+        
+        .overlay.show {
+            display: block;
+        }
+        
+        .rules-panel {
+            padding: 20px;
+            background: #1a1a1a;
+        }
+        
+        .rules-panel h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+        
+        .rules-table {
+            margin: 0 auto;
+            border-collapse: collapse;
+            font-size: 12px;
+            background: #2a2a2a;
+        }
+        
+        .rules-table th,
+        .rules-table td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: center;
+        }
+        .rules-table div{
+            width:20px;
+            height:20px;
+        }
+        
+        .rules-table th {
+            background: #555;
+            font-weight: bold;
+        }
+        
+        .intro {
+            text-align: center;
+            padding: 10px;
+            background: #2a2a2a;
+            font-size: 12px;
+            color: #bbb;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a1a;
+            padding: 30px 50px;
+            border-radius: 8px;
+            border: 2px solid #4CAF50;
+            color: #4CAF50;
+            font-size: 16px;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="panel">
+            <h2>Goal</h2>
+            <div class="grid-container">
+                <div class="grid grid-N" id="goalGrid"></div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Brush</h2>
+            <div class="grid-container">
+                <div class="grid grid-3" id="brushGrid"></div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Stencil (tap to flip)</h2>
+            <div class="grid-container">
+                <div class="grid grid-N" id="stencilGrid"></div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Shadow</h2>
+            <div class="grid-container">
+                <div class="grid grid-N" id="shadowGrid"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="intro">
+        Tap cells in Stencil to match the Goal pattern
+    </div>
+    
+    <div class="controls-section">
+        <div class="controls">
+            <button onclick="newPuzzle()">New Puzzle</button>
+            <button class="secondary" onclick="clearStencil()">Clear</button>
+            <button class="secondary" onclick="revealSolution()">Reveal Solution</button>
+        </div>
+    </div>
+    
+    <div class="rules-panel" id="rulesPanel">
+        <h2>Combination Rules</h2>
+        <table class="rules-table" id="rulesTable"></table>
+    </div>
+    
+    <div class="overlay" id="overlay"></div>
+    <div class="win-message" id="winMessage">
+        <h1>🎉 Solved! 🎉</h1>
+        <p>Shadow matches the goal!</p>
+        <button onclick="newPuzzle()">New Puzzle</button>
+    </div>
+    
+    <div class="loading" id="loading">
+        Generating puzzle...
+    </div>
+
+    <script>
+        // ===================================================================
+        // Z_6 ENCODING - USED EVERYWHERE, NO EXCEPTIONS
+        // ===================================================================
+        // 0 = black
+        // 1 = vertical
+        // 2 = diag\
+        // 3 = yellow
+        // 4 = diag/
+        // 5 = horizontal
+        
+        const N = 7;
+
+        const STATE_NAMES = ['black', 'vertical', 'diag-back', 'yellow', 'diag-fwd', 'horizontal'];
+        
+        // ===================================================================
+        // STATE - ALL USE Z_6 (0-5)
+        // ===================================================================
+        let goalPattern = [];        // Z_6: each cell is 0-5 (goal will only have 0 and 3)
+        let brushPattern = [];       // Z_6: each cell is 0-5
+        let stencilPattern = [];     // Z_6: each cell is 0 (off) or 3 (on)
+        let shadowPattern = [];      // Z_6: each cell is 0-5
+        let solutionStencil = null;  // Z_6: stores the solution stencil
+        
+        // Z_6 combination - just modular arithmetic
+        function combineStates(state1, state2) {
+            return (state1 + state2) % 6;
+        }
+        
+        // ===================================================================
+        // GRID CREATION AND DISPLAY
+        // ===================================================================
+        function createGrid(containerId, size, cellClass, onClick) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            const grid = [];
+            
+            for (let i = 0; i < size * size; i++) {
+                const cell = document.createElement('button');
+                cell.className = `cell ${cellClass}`;
+                if (onClick) {
+                    cell.onclick = () => onClick(i);
+                }
+                container.appendChild(cell);
+                grid.push(0); // Initialize to 0 (black)
+            }
+            
+            return grid;
+        }
+        
+        function updateCell(containerId, index, z6State) {
+            // z6State is 0-5, map to CSS class
+            const container = document.getElementById(containerId);
+            const cell = container.children[index];
+            cell.className = cell.className.split(' ').slice(0, 2).join(' ') + ' cell-' + STATE_NAMES[z6State];
+        }
+        
+        function updateGrid(containerId, z6Pattern) {
+            // z6Pattern is array of Z_6 states (0-5)
+            z6Pattern.forEach((state, index) => {
+                updateCell(containerId, index, state);
+            });
+        }
+        
+        // ===================================================================
+        // STENCIL INTERACTION
+        // ===================================================================
+        function toggleStencilCell(index) {
+            // Toggle between 0 (black/off) and 3 (yellow/on)
+            stencilPattern[index] = (stencilPattern[index] === 0) ? 3 : 0;
+            updateCell('stencilGrid', index, stencilPattern[index]);
+            computeShadow();
+        }
+        
+        function clearStencil() {
+            for (let i = 0; i < N*N; i++) {
+                stencilPattern[i] = 0; // 0 = black = off
+            }
+            updateGrid('stencilGrid', stencilPattern);
+            computeShadow();
+        }
+        
+        function revealSolution() {
+            if (solutionStencil) {
+                stencilPattern = [...solutionStencil];
+                updateGrid('stencilGrid', stencilPattern);
+                computeShadow();
+                // Don't show win popup
+                document.getElementById('overlay').classList.remove('show');
+                document.getElementById('winMessage').classList.remove('show');
+            }
+        }
+        
+        // ===================================================================
+        // SHADOW COMPUTATION
+        // ===================================================================
+        function computeShadow() {
+            shadowPattern = [];
+            
+            for (let y = 0; y < N; y++) {
+                for (let x = 0; x < N; x++) {
+                    let resultState = 0; // Start with black (identity in Z_6)
+                    
+                    // Convolve with 3x3 brush (using correlation, not convolution)
+                    for (let by = 0; by < 3; by++) {
+                        for (let bx = 0; bx < 3; bx++) {
+                            const sx = x + bx - 1;
+                            const sy = y + by - 1;
+                            
+                            if (sx >= 0 && sx < N && sy >= 0 && sy < N) {
+                                const stencilIndex = sy * N + sx;
+                                // Flip brush indices for correlation (not convolution)
+                                const brushIndex = (2 - by) * 3 + (2 - bx);
+                                
+                                // If stencil cell is "on" (3=yellow), add brush value
+                                if (stencilPattern[stencilIndex] === 3) {
+                                    resultState = combineStates(resultState, brushPattern[brushIndex]);
+                                }
+                            }
+                        }
+                    }
+                    
+                    shadowPattern.push(resultState);
+                }
+            }
+            
+            updateGrid('shadowGrid', shadowPattern);
+            checkWin();
+        }
+        
+        function checkWin() {
+            // Direct Z_6 comparison
+            const match = shadowPattern.every((state, index) => state === goalPattern[index]);
+            if (match) {
+                document.getElementById('overlay').classList.add('show');
+                document.getElementById('winMessage').classList.add('show');
+            }
+        }
+        
+        // ===================================================================
+        // Z_3 EQUATION SOLVER - Find stencils that produce pure shadows
+        // ===================================================================
+        
+        function findValidStencil(brush) {
+            // Build coefficient matrix for the constraint system
+            // For each shadow cell: sum(stencil[i] * brush[i]) ≡ 0 (mod 3)
+            
+            const equations = [];
+            
+            for (let y = 0; y < N; y++) {
+                for (let x = 0; x < N; x++) {
+                    const equation = new Array(N*N).fill(0);
+                    
+                    // For each brush position
+                    for (let by = 0; by < 3; by++) {
+                        for (let bx = 0; bx < 3; bx++) {
+                            const sx = x + bx - 1;
+                            const sy = y + by - 1;
+                            
+                            if (sx >= 0 && sx < N && sy >= 0 && sy < N) {
+                                const stencilIndex = sy * N + sx;
+                                const brushIndex = (2 - by) * 3 + (2 - bx);
+                                equation[stencilIndex] = brush[brushIndex] % 3;
+                            }
+                        }
+                    }
+                    
+                    equations.push(equation);
+                }
+            }
+            
+            // Gaussian elimination to row echelon form mod 3
+            const m = N*N; // equations
+            const n = N*N; // variables
+            
+            const pivotCols = []; // Track which columns have pivots (in original column indices)
+            const freeVars = []; // Track which variables are free
+            
+            let pivotRow = 0;
+            
+            // Use spiral ordering: eliminate boundary variables first, interior last
+            const columnOrder = getSpiralOrder();
+            
+            for (let colIdx = 0; colIdx < columnOrder.length; colIdx++) {
+                const col = columnOrder[colIdx];
+                
+                // Find pivot
+                let foundPivot = false;
+                for (let row = pivotRow; row < m; row++) {
+                    if (equations[row][col] % 3 !== 0) {
+                        // Swap rows
+                        [equations[pivotRow], equations[row]] = [equations[row], equations[pivotRow]];
+                        foundPivot = true;
+                        break;
+                    }
+                }
+                
+                if (!foundPivot) {
+                    // This variable is free!
+                    freeVars.push(col);
+                    continue;
+                }
+                
+                pivotCols.push(col);
+                
+                // Make pivot = 1
+                const pivotVal = equations[pivotRow][col];
+                const pivotInv = pivotVal;
+
+                for (let j = 0; j < n; j++) {
+                    equations[pivotRow][j] = (equations[pivotRow][j] * pivotInv) % 3;
+                }
+                
+                // Eliminate column in all other rows
+                for (let row = 0; row < m; row++) if (row != pivotRow){
+                    const factor = equations[row][col];
+                    if (factor !== 0) {
+                        for (let j = 0; j < n; j++) {
+                            equations[row][j] = ((equations[row][j] - factor * equations[pivotRow][j]) % 3 + 3) % 3;
+                        }
+                    }
+                }
+                // console.log(equations.map(row => row.join('')).join('\n'));
+                pivotRow++;
+            }
+            
+            // Check if we have free variables
+            if (freeVars.length === 0) {
+                return null; // No non-trivial solutions
+            }
+            
+            // Check if we have interior free variables
+            
+            
+            const halfFree = freeVars.filter(col => equations.some(eq => eq[col] != 0)).slice(0,10);
+            // console.log(`Found ${freeVars.length} free variables (${interiorFreeVars.length} interior ${halfFree.length} half free)`);
+            const entirelyFree = freeVars.filter(col => halfFree.indexOf(col)==-1);
+
+            // Construct a solution by setting free variables randomly
+            // Prioritize setting interior cells to non-zero
+            
+            const stencil = new Array(N*N).fill(0);
+            let bestStencil = null;
+            let bestInternal = 0;
+            for (let idx of entirelyFree) {
+                if (isInteriorCell(idx)) {
+                    // Interior cells: 70% chance of being on
+                    stencil[idx] = Math.random() < 0.7 ? 1 : 0;
+                } else {
+                    // Boundary cells: 30% chance of being on
+                    stencil[idx] = Math.random() < 0.3 ? 1 : 0;
+                }
+            }
+            for(let v=1<<halfFree.length;v--;){
+                for(let i=0;i<halfFree.length;++i){
+                    stencil[halfFree[i]]=v>>i&1;
+                }
+                let bad=false;
+                for (let row = pivotRow - 1; row >= 0; row--) {
+                    const col = pivotCols[row];
+                    
+                    // equation[row] represents: equations[row][col] * stencil[col] + sum(equations[row][j] * stencil[j]) = 0 (mod 3)
+                    // Since we normalized to have equations[row][col] = 1, we have:
+                    // stencil[col] + sum(equations[row][j] * stencil[j] for j != col) = 0 (mod 3)
+                    
+                    let sum = 0;
+                    for (let j = 0; j < n; j++) {
+                         if (j !== col) {
+                             sum = (sum + equations[row][j] * stencil[j]) % 3;
+                         }
+                    }
+                    stencil[col] = (3-sum) % 3;
+                    if(stencil[col]>1){
+                        bad=true;
+                        break;
+                    }
+                }
+                if(!bad){
+                    const internalCnt = stencil.filter((s,col) => s && isInteriorCell(col)).length;
+                    if(!bestStencil || bestInternal < internalCnt){
+                        bestStencil = stencil.map(x=>x?3:0);
+                        bestInternal = internalCnt;
+                    }
+                }
+            }
+            return bestStencil;
+        }
+        
+        // ===================================================================
+        // PUZZLE GENERATION
+        // ===================================================================
+        function isPureShadow(shadow) {
+            // Shadow is pure if all values are 0 (black) or 3 (yellow)
+            return shadow.every(state => state === 0 || state === 3);
+        }
+        
+        function generateSmartBrush() {
+            // Generate completely random brush - no restrictions!
+            const brush = [];
+            for (let i = 0; i < 9; i++) {
+                brush.push(Math.floor(Math.random() * 6));
+            }
+            return brush;
+        }
+        
+        function isInteriorCell(index) {
+            // Check if cell is not on the boundary
+            const x = index % N;
+            const y = Math.floor(index / N);
+            return x > 0 && x + 1< N && y > 0 && y + 1< N;
+        }
+        
+        function getSpiralOrder() {
+            return Array.from({length:N*N}, (_,i)=>i).sort((a,b)=>{
+                const ax = a%N;
+                const ay = Math.floor(a/N);
+                const bx = b%N;
+                const by = Math.floor(b/N);
+                const c = N/2;
+                return - Math.max(Math.abs(ax-c),Math.abs(ay-c)) + Math.max(Math.abs(bx-c),Math.abs(by-c));
+            });
+        }
+        
+        function computeShadowFromStencil(stencil) {
+            // stencil is Z_6 array (only 0 and 3)
+            const shadow = [];
+            
+            for (let y = 0; y < N; y++) {
+                for (let x = 0; x < N; x++) {
+                    let resultState = 0;
+                    
+                    for (let by = 0; by < 3; by++) {
+                        for (let bx = 0; bx < 3; bx++) {
+                            const sx = x + bx - 1;
+                            const sy = y + by - 1;
+                            
+                            if (sx >= 0 && sx < N && sy >= 0 && sy < N) {
+                                const stencilIndex = sy * N + sx;
+                                // Flip brush indices for correlation
+                                const brushIndex = (2 - by) * 3 + (2 - bx);
+                                
+                                // If stencil is "on" (3), add brush value
+                                if (stencil[stencilIndex] === 3) {
+                                    resultState = combineStates(resultState, brushPattern[brushIndex]);
+                                }
+                            }
+                        }
+                    }
+                    
+                    shadow.push(resultState);
+                }
+            }
+            
+            return shadow;
+        }
+        
+        function generateSolvablePuzzle() {
+            const maxSearchTime = 10000; // 1 second in milliseconds
+            const startTime = Date.now();
+            
+            let totalBrushTests = 0;
+            let bestBrushWithoutInterior = null;
+            let bestStencilWithoutInterior = null;
+            
+            // Search for up to 1 second for a puzzle with interior activity
+            while (Date.now() - startTime < maxSearchTime) {
+                brushPattern = generateSmartBrush();
+                totalBrushTests++;
+                
+                console.log(`Testing brush #${totalBrushTests}...`);
+                
+                // Try to find a valid stencil using Z_3 solver
+                const stencil = findValidStencil(brushPattern);
+                
+                if (!stencil) {
+                    console.log(`  Rejected - no non-trivial solutions`);
+                    continue;
+                }
+                
+                console.log(`  Found stencil via Z_3 solver!`);
+                
+                // Compute the shadow
+                const tempShadow = computeShadowFromStencil(stencil);
+                
+                // Check if it's pure
+                if (!isPureShadow(tempShadow)) {
+                    console.error(`  ERROR: Solver produced impure shadow!`);
+                    continue;
+                }
+                
+                // Check if it's all black (boring)
+                const allBlack = tempShadow.every(s => s === 0);
+                if (allBlack) {
+                    console.log(`  Rejected - shadow is all black`);
+                    continue;
+                }
+                
+                // Check if stencil has interior cells on
+                const stencilHasInterior = stencil.some((val, idx) => val === 3 && isInteriorCell(idx));
+                
+                if (stencilHasInterior) {
+                    // Success! Found one with interior activity
+                    const elapsedMs = Date.now() - startTime;
+                    console.log(`Success! Found puzzle with interior activity after ${totalBrushTests} brushes (${elapsedMs}ms)`);
+                    goalPattern = [...tempShadow];
+                    solutionStencil = [...stencil];
+                    updateGrid('goalGrid', goalPattern);
+                    updateGrid('brushGrid', brushPattern);
+                    return true;
+                } else {
+                    // Save as backup in case we don't find better
+                    console.log(`  Found valid puzzle but only boundary activity - saving as backup`);
+                    if (!bestBrushWithoutInterior) {
+                        bestBrushWithoutInterior = [...brushPattern];
+                        bestStencilWithoutInterior = [...stencil];
+                    }
+                }
+            }
+            
+            // Time's up! If we have a backup (boundary-only puzzle), use it
+            if (bestBrushWithoutInterior) {
+                console.log(`Using backup puzzle with boundary activity after ${totalBrushTests} brushes (1 second elapsed)`);
+                brushPattern = bestBrushWithoutInterior;
+                const tempShadow = computeShadowFromStencil(bestStencilWithoutInterior);
+                goalPattern = [...tempShadow];
+                solutionStencil = [...bestStencilWithoutInterior];
+                updateGrid('goalGrid', goalPattern);
+                updateGrid('brushGrid', brushPattern);
+                return true;
+            }
+            
+            // Fallback: use pure brush (only 0 and 3)
+            console.log(`Falling back to pure brush after testing ${totalBrushTests} brushes`);
+            for (let i = 0; i < 9; i++) {
+                brushPattern[i] = Math.random() < 0.5 ? 0 : 3;
+            }
+            
+            const numCells = Math.floor(Math.random() * N*2) + N;
+            const tempStencil = new Array(N*N).fill(0);
+            const positions = [];
+            for (let i = 0; i < N*N; i++) positions.push(i);
+            for (let i = positions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [positions[i], positions[j]] = [positions[j], positions[i]];
+            }
+            for (let i = 0; i < numCells; i++) {
+                tempStencil[positions[i]] = 3;
+            }
+            
+            const tempShadow = computeShadowFromStencil(tempStencil);
+            
+            if (!isPureShadow(tempShadow)) {
+                console.error("ERROR: Fallback produced impure shadow!");
+            }
+            
+            goalPattern = [...tempShadow];
+            solutionStencil = [...tempStencil];
+            updateGrid('goalGrid', goalPattern);
+            updateGrid('brushGrid', brushPattern);
+            return true;
+        }
+        
+        // ===================================================================
+        // UI CONTROLS
+        // ===================================================================
+        function newPuzzle() {
+            document.getElementById('overlay').classList.remove('show');
+            document.getElementById('winMessage').classList.remove('show');
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('overlay').classList.add('show');
+            
+            setTimeout(() => {
+                generateSolvablePuzzle();
+                clearStencil();
+                
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('overlay').classList.remove('show');
+            }, 50);
+        }
+        
+        function generateRulesTable() {
+            const table = document.getElementById('rulesTable');
+            let html = '<tr><th>+</th>';
+            
+            STATE_NAMES.forEach(symbol => {
+                html += `<th><div class="cell-${symbol}">&nbsp;</div></th>`;
+            });
+            html += '</tr>';
+            
+            // Generate table using modular arithmetic
+            for (let i = 0; i < 6; i++) {
+                html += `<tr><th><div class="cell-${STATE_NAMES[i]}">&nbsp;</div></th>`;
+                for (let j = 0; j < 6; j++) {
+                    const result = (i + j) % 6;
+                    html += `<td><div class="cell-${STATE_NAMES[result]}">&nbsp;</div></td>`;
+                }
+                html += '</tr>';
+            }
+            
+            table.innerHTML = html;
+        }
+        
+        // ===================================================================
+        // INITIALIZATION
+        // ===================================================================
+        createGrid('goalGrid', N, '', null);
+        createGrid('brushGrid', 3, '', null);
+        createGrid('stencilGrid', N, '', toggleStencilCell);
+        createGrid('shadowGrid', N, '', null);
+        
+        brushPattern = new Array(9).fill(0);
+        stencilPattern = new Array(N*N).fill(0);
+        
+        generateRulesTable();
+        
+        // Smoke test: verify that a known good brush works
+        console.log('=== SMOKE TEST ===');
+        const testBrush = [0, 1, 0, 2, 1, 4, 0, 2, 0];
+        console.log('Testing brush:', testBrush);
+        const testStencil = findValidStencil(testBrush);
+        if (testStencil) {
+            const interiorActive = testStencil.filter((val, idx) => val === 3 && isInteriorCell(idx));
+            if (interiorActive.length > 0) {
+                console.log(`✓ SMOKE TEST PASSED: Found ${interiorActive.length} interior active cells`);
+            } else {
+                console.warn('⚠ SMOKE TEST: Solution found but no interior activity');
+            }
+        } else {
+            console.error('✗ SMOKE TEST FAILED: No solution found for test brush!');
+        }
+        console.log('=== END SMOKE TEST ===\n');
+        
+        newPuzzle();
+    </script>
+</body>
+</html>
