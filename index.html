@@ -73,6 +73,22 @@
             padding: 0;
             position: relative;
             min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0a0a0a;
+        }
+        
+        .cell-inner {
+            width: 85%;
+            height: 85%;
+            position: absolute;
+            transition: transform 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
         }
         
         .panel:nth-child(1) .grid-N,
@@ -89,53 +105,22 @@
             opacity: 0.7;
         }
         
-        .cell-black {
+        /* Z_2 component: background color */
+        .cell-inner.z2-0 {
             background: #000;
+            border: 1px solid #FFD700;
+            color: #FFD700;
         }
         
-        .cell-yellow {
+        .cell-inner.z2-1 {
             background: #FFD700;
+            color: #000;
         }
         
-        .cell-diag-fwd {
-            background: repeating-linear-gradient(
-                45deg,
-                #fff,
-                #fff 2px,
-                #000 2px,
-                #000 4px
-            );
-        }
-        
-        .cell-diag-back {
-            background: repeating-linear-gradient(
-                -45deg,
-                #fff,
-                #fff 2px,
-                #000 2px,
-                #000 4px
-            );
-        }
-        
-        .cell-vertical {
-            background: repeating-linear-gradient(
-                90deg,
-                #fff,
-                #fff 2px,
-                #000 2px,
-                #000 4px
-            );
-        }
-        
-        .cell-horizontal {
-            background: repeating-linear-gradient(
-                0deg,
-                #fff,
-                #fff 2px,
-                #000 2px,
-                #000 4px
-            );
-        }
+        /* Z_3 component: rotation */
+        .cell-inner.z3-0 { transform: rotate(0deg); }
+        .cell-inner.z3-1 { transform: rotate(30deg); }
+        .cell-inner.z3-2 { transform: rotate(60deg); }
         
         .controls-section {
             padding: 20px;
@@ -237,12 +222,12 @@
         .rules-table th,
         .rules-table td {
             border: 1px solid #444;
-            padding: 8px;
+            padding: 4px;
             text-align: center;
         }
-        .rules-table div{
-            width:20px;
-            height:20px;
+        
+        .rules-table .cell {
+            margin: 0 auto;
         }
         
         .rules-table th {
@@ -377,6 +362,12 @@
             for (let i = 0; i < size * size; i++) {
                 const cell = document.createElement('button');
                 cell.className = `cell ${cellClass}`;
+                
+                // Create inner square element
+                const inner = document.createElement('div');
+                inner.className = 'cell-inner';
+                cell.appendChild(inner);
+                
                 if (onClick) {
                     cell.onclick = () => onClick(i);
                 }
@@ -388,10 +379,19 @@
         }
         
         function updateCell(containerId, index, z6State) {
-            // z6State is 0-5, map to CSS class
+            // Decompose Z_6 value into Z_2 × Z_3
+            const z2 = z6State % 2;
+            const z3 = z6State % 3;
+            
             const container = document.getElementById(containerId);
             const cell = container.children[index];
-            cell.className = cell.className.split(' ').slice(0, 2).join(' ') + ' cell-' + STATE_NAMES[z6State];
+            const inner = cell.querySelector('.cell-inner');
+            
+            // Apply Z_2 (color) and Z_3 (rotation) classes
+            inner.className = `cell-inner z2-${z2} z3-${z3}`;
+            
+            // Show digit (except for 0)
+            inner.textContent = z6State === 0 ? '' : z6State;
         }
         
         function updateGrid(containerId, z6Pattern) {
@@ -544,22 +544,24 @@
                 
                 // Make pivot = 1
                 const pivotVal = equations[pivotRow][col];
-                const pivotInv = pivotVal;
+                const pivotInv = pivotVal === 1 ? 1 : 2; // In Z_3: 1^-1=1, 2^-1=2
 
                 for (let j = 0; j < n; j++) {
                     equations[pivotRow][j] = (equations[pivotRow][j] * pivotInv) % 3;
                 }
                 
                 // Eliminate column in all other rows
-                for (let row = 0; row < m; row++) if (row != pivotRow){
-                    const factor = equations[row][col];
-                    if (factor !== 0) {
-                        for (let j = 0; j < n; j++) {
-                            equations[row][j] = ((equations[row][j] - factor * equations[pivotRow][j]) % 3 + 3) % 3;
+                for (let row = 0; row < m; row++) {
+                    if (row != pivotRow) {
+                        const factor = equations[row][col];
+                        if (factor !== 0) {
+                            for (let j = 0; j < n; j++) {
+                                equations[row][j] = ((equations[row][j] - factor * equations[pivotRow][j]) % 3 + 3) % 3;
+                            }
                         }
                     }
                 }
-                // console.log(equations.map(row => row.join('')).join('\n'));
+                
                 pivotRow++;
             }
             
@@ -568,19 +570,16 @@
                 return null; // No non-trivial solutions
             }
             
-            // Check if we have interior free variables
-            
-            
+            // Distinguish between entirely free and half-free variables
             const halfFree = freeVars.filter(col => equations.some(eq => eq[col] != 0)).slice(0,10);
-            // console.log(`Found ${freeVars.length} free variables (${interiorFreeVars.length} interior ${halfFree.length} half free)`);
             const entirelyFree = freeVars.filter(col => halfFree.indexOf(col)==-1);
 
             // Construct a solution by setting free variables randomly
-            // Prioritize setting interior cells to non-zero
-            
             const stencil = new Array(N*N).fill(0);
             let bestStencil = null;
             let bestInternal = 0;
+            
+            // Set entirely free variables
             for (let idx of entirelyFree) {
                 if (isInteriorCell(idx)) {
                     // Interior cells: 70% chance of being on
@@ -590,17 +589,17 @@
                     stencil[idx] = Math.random() < 0.3 ? 1 : 0;
                 }
             }
+            
+            // Try all combinations of half-free variables
             for(let v=1<<halfFree.length;v--;){
                 for(let i=0;i<halfFree.length;++i){
                     stencil[halfFree[i]]=v>>i&1;
                 }
                 let bad=false;
+                
+                // Back-substitution to compute pivot variables
                 for (let row = pivotRow - 1; row >= 0; row--) {
                     const col = pivotCols[row];
-                    
-                    // equation[row] represents: equations[row][col] * stencil[col] + sum(equations[row][j] * stencil[j]) = 0 (mod 3)
-                    // Since we normalized to have equations[row][col] = 1, we have:
-                    // stencil[col] + sum(equations[row][j] * stencil[j] for j != col) = 0 (mod 3)
                     
                     let sum = 0;
                     for (let j = 0; j < n; j++) {
@@ -614,6 +613,7 @@
                         break;
                     }
                 }
+                
                 if(!bad){
                     const internalCnt = stencil.filter((s,col) => s && isInteriorCell(col)).length;
                     if(!bestStencil || bestInternal < internalCnt){
@@ -694,14 +694,14 @@
         }
         
         function generateSolvablePuzzle() {
-            const maxSearchTime = 10000; // 1 second in milliseconds
+            const maxSearchTime = 10000; // 10 seconds in milliseconds
             const startTime = Date.now();
             
             let totalBrushTests = 0;
             let bestBrushWithoutInterior = null;
             let bestStencilWithoutInterior = null;
             
-            // Search for up to 1 second for a puzzle with interior activity
+            // Search for up to 10 seconds for a puzzle with interior activity
             while (Date.now() - startTime < maxSearchTime) {
                 brushPattern = generateSmartBrush();
                 totalBrushTests++;
@@ -758,7 +758,7 @@
             
             // Time's up! If we have a backup (boundary-only puzzle), use it
             if (bestBrushWithoutInterior) {
-                console.log(`Using backup puzzle with boundary activity after ${totalBrushTests} brushes (1 second elapsed)`);
+                console.log(`Using backup puzzle with boundary activity after ${totalBrushTests} brushes (10 seconds elapsed)`);
                 brushPattern = bestBrushWithoutInterior;
                 const tempShadow = computeShadowFromStencil(bestStencilWithoutInterior);
                 goalPattern = [...tempShadow];
@@ -821,17 +821,25 @@
             const table = document.getElementById('rulesTable');
             let html = '<tr><th>+</th>';
             
-            STATE_NAMES.forEach(symbol => {
-                html += `<th><div class="cell-${symbol}">&nbsp;</div></th>`;
-            });
+            // Header row with rotated squares
+            for (let i = 0; i < 6; i++) {
+                const z2 = i % 2;
+                const z3 = i % 3;
+                html += `<th><div class="cell" style="width:24px;height:24px;background:#0a0a0a;"><div class="cell-inner z2-${z2} z3-${z3}" style="font-size:10px;"></div></div></th>`;
+            }
             html += '</tr>';
             
-            // Generate table using modular arithmetic
+            // Generate table rows
             for (let i = 0; i < 6; i++) {
-                html += `<tr><th><div class="cell-${STATE_NAMES[i]}">&nbsp;</div></th>`;
+                const z2_i = i % 2;
+                const z3_i = i % 3;
+                html += `<tr><th><div class="cell" style="width:24px;height:24px;background:#0a0a0a;"><div class="cell-inner z2-${z2_i} z3-${z3_i}" style="font-size:10px;"></div></div></th>`;
+                
                 for (let j = 0; j < 6; j++) {
                     const result = (i + j) % 6;
-                    html += `<td><div class="cell-${STATE_NAMES[result]}">&nbsp;</div></td>`;
+                    const z2_r = result % 2;
+                    const z3_r = result % 3;
+                    html += `<td><div class="cell" style="width:24px;height:24px;background:#0a0a0a;"><div class="cell-inner z2-${z2_r} z3-${z3_r}" style="font-size:10px;"></div></div></td>`;
                 }
                 html += '</tr>';
             }
